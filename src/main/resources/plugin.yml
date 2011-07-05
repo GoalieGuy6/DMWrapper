@@ -1,0 +1,9 @@
+name: DMWrapper
+main: com.gmail.goalieguy6.DMWrapper.DMWrapper
+version: 0.1.0
+authors:
+    - GoalieGuy6
+    - magik
+description: >
+             Wrapper for DynamicMarket to add location features
+commands:
