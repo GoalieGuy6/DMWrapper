@@ -7,25 +7,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.StringTokenizer;
 
+import me.slaps.DMWrapper.ShopLocation;
+
 import org.bukkit.Location;
 import org.bukkit.util.config.Configuration;
 
-public class LocationManager {
+public class LocationManager extends ILocationManager {
 	
-	private DMWrapper plugin;
-	
-	private File configFile;
-	private Configuration config;
-	
-	private boolean locationsEnabled;
 	private ArrayList<ShopLocation> shops;
 	
 	public LocationManager(DMWrapper instance) {
-		plugin = instance;
-	
 		shops = new ArrayList<ShopLocation>();
 		
-		configFile = new File(plugin.getDataFolder() + File.separator + "shops.yml");
+		plugin = instance;
+		
+		configFile = new File(plugin.getDataFolder(), "shops-dmwrapper.yml");
 		config = new Configuration(configFile);
 		
 		if (!configFile.exists()) {
@@ -73,6 +69,7 @@ public class LocationManager {
 		ArrayList<LinkedHashMap<String, Object>> tempShops = new ArrayList<LinkedHashMap<String, Object>>();
 		
 		config.setProperty("enabled", locationsEnabled);
+		config.setProperty("type", "dmwrapper");
 		
 		Iterator<ShopLocation> itr = shops.iterator();
 		while (itr.hasNext()) {
@@ -94,19 +91,11 @@ public class LocationManager {
 		config.setProperty("shops", tempShops);
 		config.save();
 	}
-	
-	public void enableLocations() {
-		locationsEnabled = true;
-		saveConfig();
-	}
-	
-	public void disableLocations() {
-		locationsEnabled = false;
-		saveConfig();
-	}
 
 	public boolean add(ShopLocation shop) {
-		if (shop.id == null) shop.id = getNextId();
+		if (shop.id == null) {
+			shop.id = getNextId();
+		}
 		shops.add(shop);
 		saveConfig();
 		return true;
@@ -129,6 +118,7 @@ public class LocationManager {
 		return false;
 	}
 	
+	@Override
 	public String listShops() {
 		String list = "";
 		Iterator<ShopLocation> itr = shops.iterator();
@@ -179,6 +169,7 @@ public class LocationManager {
 		return -1;
 	}
 	
+	@Override
 	public boolean inShop(Location loc) {
 		Iterator<ShopLocation> itr = shops.iterator();
 		
