@@ -108,7 +108,7 @@ public class LocationManagerWG extends ILocationManager {
 		
 		while (itr.hasNext()) {
 			HashMap<String, String> shop = itr.next();
-			if (shop.get("world").equalsIgnoreCase("world") && shop.get("region").equals("id")) {
+			if (shop.get("world").equalsIgnoreCase("world") && shop.get("region").equalsIgnoreCase(id)) {
 				shops.remove(i);
 				saveConfig();
 				return true;
