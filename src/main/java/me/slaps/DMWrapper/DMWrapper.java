@@ -7,6 +7,7 @@ import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.logging.Logger;
 
 import org.bukkit.Location;
@@ -36,6 +37,7 @@ public class DMWrapper extends JavaPlugin {
 	
 	private boolean attemptWG;
 	private boolean useWG;
+	private List<String> restrictedCommands;
 	
 	public void onDisable() {
 		log.info("[" + this.name + "] Version " + this.version + " disabled.");
@@ -57,7 +59,11 @@ public class DMWrapper extends JavaPlugin {
 		config.load();
 		useWG = config.getBoolean("worldguard", false);
 		attemptWG = useWG;
-		config.save();
+		restrictedCommands = config.getStringList("restricted-commands", null);
+		if (restrictedCommands.size() == 0) {
+			config.setProperty("restricted-commands", new String[]{"buy", "sell"});
+			config.save();
+		}
 		
 		PluginManager pm = getServer().getPluginManager();
 		pluginListener.checkPlugins(pm);
@@ -80,6 +86,7 @@ public class DMWrapper extends JavaPlugin {
 		Configuration config = new Configuration(new File(getDataFolder(), "config.yml"));
 		config.load();
 		config.setProperty("worldguard", false);
+		config.setProperty("restricted-commands", new String[]{"buy", "sell"});
 		config.save();
 	}
 
@@ -105,45 +112,46 @@ public class DMWrapper extends JavaPlugin {
 		// Not setting up a location
 		if (!args[0].equalsIgnoreCase("location") && !args[0].equalsIgnoreCase("-l")) {
 			// Check if they are in a shop or have the location bypass permission
-			if (!locationManager.enabled() || dmapi.hasPermission(sender, "admin.location.bypass") || locationManager.inShop(((Player) sender).getLocation())) {
+			boolean allow = !restrictedCommands.contains(args[0]);
+			if (allow || !locationManager.enabled() || dmapi.hasPermission(sender, "admin.location.bypass") || locationManager.inShop(((Player) sender).getLocation())) {
 				return dmapi.returnCommand(sender, cmd, args);
 			} else {
-				message.send(dmapi.getShopTag() + " You must be in a shop area to use that command.");
+				message.send(dmapi.getShopTag() + "<yellow>You must be in a shop area to use that command.");
 				return true;
 			}
 		} else {
 			if (args.length == 2 && args[1].equalsIgnoreCase("enable") && dmapi.hasPermission(sender, "admin.location.toggle")) {
 				locationManager.enableLocations();
-				message.send(dmapi.getShopTag() + " Shop locations enabled.");
+				message.send(dmapi.getShopTag() + "<yellow>Shop locations enabled.");
 				return true;
 			} else if (args.length == 2 && args[1].equalsIgnoreCase("disable") && dmapi.hasPermission(sender, "admin.location.toggle")) {
 				locationManager.disableLocations();
-				message.send(dmapi.getShopTag() + " Shop locations disabled.");
+				message.send(dmapi.getShopTag() + "<yellow>Shop locations disabled.");
 				return true;
 			} else if (useWG) {
 				String world = ((Player) sender).getWorld().getName();
 				if (args.length == 3 && args[1].equalsIgnoreCase("create") && dmapi.hasPermission(sender, "admin.location.create")) {
 					String region = args[2];
 					if (((LocationManagerWG) locationManager).add(world, region)) {
-						message.send(dmapi.getShopTag() + " Shop location added on: " + region);
+						message.send(dmapi.getShopTag() + "<yellow>Shop location added on: " + region);
 					} else {
-						message.send(dmapi.getShopTag() + " Error creating shop on: " + region);
+						message.send(dmapi.getShopTag() + "<yellow>Error creating shop on: " + region);
 					}
 					return true;
 				} else if (args.length == 3 && args[1].equalsIgnoreCase("delete") && dmapi.hasPermission(sender, "admin.location.delete")) {
 					String region = args[2];
 					if (((LocationManagerWG) locationManager).removeShop(world, region)) {
-						message.send(dmapi.getShopTag() + " Shop removed.");
+						message.send(dmapi.getShopTag() + "<yellow>Shop removed.");
 					} else {
-						message.send(dmapi.getShopTag() + " Error removing shop: " + region);
+						message.send(dmapi.getShopTag() + "<yellow>Error removing shop: " + region);
 					}
 					return true;
 				} else if (args.length == 2 && args[1].equalsIgnoreCase("check") && dmapi.hasPermission(sender, "location.check")) {
 					String id = ((LocationManagerWG) locationManager).getShopId(((Player) sender).getLocation());
 					if (id == null) {
-						message.send(dmapi.getShopTag() + " You are not in a shop area.");
+						message.send(dmapi.getShopTag() + "<yellow>You are not in a shop area.");
 					} else {
-						message.send(dmapi.getShopTag() + " You are in shop: " + id);
+						message.send(dmapi.getShopTag() + "<yellow>You are in shop: " + id);
 					}
 					return true;
 				} else if (args.length == 2 && args[1].equalsIgnoreCase("list") && dmapi.hasPermission(sender, "location.list")) {
@@ -154,7 +162,7 @@ public class DMWrapper extends JavaPlugin {
 					
 					Location dest = ((LocationManagerWG) locationManager).getShopLocation(world, id);
 					if (dest == null) {
-						message.send(dmapi.getShopTag() + " Shop area " + id + " not found.");
+						message.send(dmapi.getShopTag() + "<yellow>Shop area " + id + " not found.");
 					} else {
 						((Player) sender).teleport(dest);
 					}
@@ -178,16 +186,16 @@ public class DMWrapper extends JavaPlugin {
 							shop.setLocation(2, target);
 							shops.put(username, shop);
 							pointsSet.put(username, 2);
-							message.send(dmapi.getShopTag() + " Second point set (X:" + target.getBlockX() + " Y:" + target.getBlockY() + " Z:" + target.getBlockZ() + "). Finalize selection with /shop location create.");
+							message.send(dmapi.getShopTag() + "<yellow>Second point set (X:" + target.getBlockX() + " Y:" + target.getBlockY() + " Z:" + target.getBlockZ() + "). Finalize selection with /shop location create.");
 						} else if (points == 2) {
 							shops.put(username, new ShopLocation(target));
 							pointsSet.put(username, 1);
-							message.send(dmapi.getShopTag() + " First point set (X:" + target.getBlockX() + " Y:" + target.getBlockY() + " Z:" + target.getBlockZ() + "). Please select a second point.");
+							message.send(dmapi.getShopTag() + "<yellow>First point set (X:" + target.getBlockX() + " Y:" + target.getBlockY() + " Z:" + target.getBlockZ() + "). Please select a second point.");
 						}
 					} else {
 						shops.put(username, new ShopLocation(target));
 						pointsSet.put(username, 1);
-						message.send(dmapi.getShopTag() + " First point set (X:" + target.getBlockX() + " Y:" + target.getBlockY() + " Z:" + target.getBlockZ() + "). Please select a second point.");
+						message.send(dmapi.getShopTag() + "<yellow>First point set (X:" + target.getBlockX() + " Y:" + target.getBlockY() + " Z:" + target.getBlockZ() + "). Please select a second point.");
 					}
 					
 					return true;
@@ -195,7 +203,7 @@ public class DMWrapper extends JavaPlugin {
 					ShopLocation shop = null;
 					int points = pointsSet.get(username);
 					if (points == 1) {
-						message.send(dmapi.getShopTag() + " You need to select a second point!");
+						message.send(dmapi.getShopTag() + "<yellow>You need to select a second point!");
 						return true;
 					} else if (points == 2) {
 						shop = shops.get(username);
@@ -205,12 +213,12 @@ public class DMWrapper extends JavaPlugin {
 					
 					if (shop != null) {
 						if (((LocationManager) locationManager).add(shop)) {
-							message.send(dmapi.getShopTag() + " Shop location added.");
+							message.send(dmapi.getShopTag() + "<yellow>Shop location added.");
 						} else {
 							message.send(dmapi.getShopTag() + " Error creating shop location.");
 						}
 					} else {
-						message.send(dmapi.getShopTag() + " Error creating shop location.");
+						message.send(dmapi.getShopTag() + "<yellow>Error creating shop location.");
 					}
 					
 					return true;
@@ -218,27 +226,27 @@ public class DMWrapper extends JavaPlugin {
 					if (pointsSet.containsKey(username)) {
 						pointsSet.remove("username");
 						shops.remove("username");
-						message.send(dmapi.getShopTag() + " Location setup cancelled.");
+						message.send(dmapi.getShopTag() + "<yellow>Location setup cancelled.");
 					} else {
-						message.send(dmapi.getShopTag() + " You are not setting up a shop location!");
+						message.send(dmapi.getShopTag() + "<yellow>You are not setting up a shop location!");
 					}
 					return true;
 				} else if (args.length == 2 && args[1].equalsIgnoreCase("check") && dmapi.hasPermission(sender, "location.check")) {
 					Integer id = ((LocationManager) locationManager).getShopId(((Player) sender).getLocation());
 					if (id < 0) {
-						message.send(dmapi.getShopTag() + " You are not in a shop area.");
+						message.send(dmapi.getShopTag() + "<yellow>You are not in a shop area.");
 					} else {
-						message.send(dmapi.getShopTag() + " You are in shop ID: " + Integer.toString(id));
+						message.send(dmapi.getShopTag() + "<yellow>You are in shop ID: " + Integer.toString(id));
 					}
 					return true;
 				} else if (args.length == 2 && args[1].equalsIgnoreCase("delete") && dmapi.hasPermission(sender, "admin.location.delete")) {
 					Integer id = ((LocationManager) locationManager).getShopId(((Player) sender).getLocation());
 					if (id < 0) {
-						message.send(dmapi.getShopTag() + " No shop found. Specify an ID or stand in a shop.");
+						message.send(dmapi.getShopTag() + "<yellow>No shop found. Specify an ID or stand in a shop.");
 					} else if (((LocationManager) locationManager).removeShop(id)) {
-						message.send(dmapi.getShopTag() + " Shop removed.");
+						message.send(dmapi.getShopTag() + "<yellow>Shop removed.");
 					} else {
-						message.send(dmapi.getShopTag() + " Error removing shop ID: " + Integer.toString(id));
+						message.send(dmapi.getShopTag() + "<yellow>Error removing shop ID: " + Integer.toString(id));
 					}
 					return true;
 				} else if (args.length == 3 && args[1].equalsIgnoreCase("delete") && dmapi.hasPermission(sender, "admin.location.delete")) {
@@ -246,14 +254,14 @@ public class DMWrapper extends JavaPlugin {
 					try {
 						id = Integer.parseInt(args[2]);
 					} catch (NumberFormatException ex) {
-						message.send(dmapi.getShopTag() + " Invalid shop ID: " + args[2]);
+						message.send(dmapi.getShopTag() + "<yellow>Invalid shop ID: " + args[2]);
 						return true;
 					}
 					
 					if (((LocationManager) locationManager).removeShop(id)) {
-						message.send(dmapi.getShopTag() + " Shop removed.");
+						message.send(dmapi.getShopTag() + "<yellow>Shop removed.");
 					} else {
-						message.send(dmapi.getShopTag() + " Error removing shop ID: " + Integer.toString(id));
+						message.send(dmapi.getShopTag() + "<yellow>Error removing shop ID: " + Integer.toString(id));
 					}
 					return true;
 				} else if (args.length == 2 && args[1].equalsIgnoreCase("list") && dmapi.hasPermission(sender, "location.list")) {
@@ -264,13 +272,13 @@ public class DMWrapper extends JavaPlugin {
 					try {
 						id = Integer.parseInt(args[2]);
 					} catch (NumberFormatException ex) {
-						message.send(dmapi.getShopTag() + " Invalid shop ID: " + args[2]);
+						message.send(dmapi.getShopTag() + "<yellow>Invalid shop ID: " + args[2]);
 						return true;
 					}
 					
 					Location dest = ((LocationManager) locationManager).getShopLocation(id);
 					if (dest == null) {
-						message.send(dmapi.getShopTag() + " Shop ID " + Integer.toString(id) + " not found.");
+						message.send(dmapi.getShopTag() + "<yellow>Shop ID " + Integer.toString(id) + " not found.");
 					} else {
 						((Player) sender).teleport(dest);
 					}
